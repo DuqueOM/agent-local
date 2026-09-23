@@ -49,7 +49,14 @@ def test_the_version_is_the_distributions_own():
     assert match.group(1) == PROVENANCE["distribution_version"]
 
 
-def test_the_provenance_names_a_real_commit():
-    """An export from uncommitted source cannot be reproduced, so it is not provenance."""
+def test_the_provenance_is_a_clean_full_sha():
+    """An export from uncommitted source cannot be reproduced, so it is not provenance.
+
+    This checks the SHA's FORM only: forty hex digits, no ``-dirty`` suffix. It
+    does not — cannot, without ml-platform reachable — check that the commit
+    exists or is still reachable from ml-platform ``main``. A squash merge can
+    orphan the commit this names while this test stays green; the
+    re-export-from-main step in platform-ADR-010 is what closes that.
+    """
     commit = PROVENANCE["commit"]
-    assert re.fullmatch(r"[0-9a-f]{40}", commit), f"not a clean commit SHA: {commit!r}"
+    assert re.fullmatch(r"[0-9a-f]{40}", commit), f"not a clean, full commit SHA: {commit!r}"
