@@ -7,9 +7,9 @@
 >
 > **This repository was not archived, and stays live.** The two are not the
 > same value: `ml-platform` gives this core *one particular, governed use*
-> inside a multi-project substrate, while `agent-local` remains the
-> **business-agnostic upstream** for anyone who wants the agent core without a
-> platform around it.
+> inside a multi-project substrate, while `agent-local` is the **standalone
+> version** of that core, for anyone who wants it without a platform around
+> it. The core itself is developed in `ml-platform`.
 >
 > **Why the code was consolidated.** This repository carried an explicit
 > cross-repository contract with the sibling template — two CI configurations,
@@ -55,9 +55,10 @@ The shipped example use-case, **`tienda`**, is a WhatsApp store assistant.
 >
 > **The cross-repository contract described here previously was dissolved, not
 > optimised.** `ml-platform` ADR-002 consolidated the code precisely so that no
-> plan document in one repository governs another. What remains is a one-way
-> relationship: the platform consumes this core; this repository depends on
-> nothing downstream of it, which is what keeps it business-agnostic. See
+> plan document in one repository governs another. What remains is one-way,
+> and it runs *from* the platform: the core is developed there, and this
+> repository is its standalone version. It stays business-agnostic because it
+> depends on nothing downstream of it. See
 > [ADR-001](docs/decisions/ADR-001-reusable-platform-not-template.md) for why
 > that agnosticism is the property worth protecting.
 
