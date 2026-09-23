@@ -28,3 +28,18 @@ class TierResolutionStub:
 @pytest.fixture(autouse=True)
 def _isolate_telemetry(tmp_path, monkeypatch):
     monkeypatch.setenv("AGENT_TELEMETRY_PATH", str(tmp_path / "telemetry.jsonl"))
+
+
+def tienda_agent():
+    """A wired tienda agent — the composition ``core.load_agent("tienda")`` used to do.
+
+    The core stopped resolving use-cases by name (platform-ADR-001), so the
+    caller composes: load the config from the use-case's own directory, build
+    its tools, hand both over. Tests are a caller. Mirrors the ``store_agent``
+    fixture in ml-platform's ``projects/store-assistant/tests/conftest.py``.
+    """
+    from core import build_agent, load_usecase
+    from usecases.tienda import USECASE_ROOT, build_registry
+
+    config = load_usecase(USECASE_ROOT)
+    return build_agent(config, build_registry(config))

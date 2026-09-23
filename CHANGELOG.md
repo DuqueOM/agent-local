@@ -9,6 +9,35 @@ are backwards-compatible by default (new behaviour is opt-in or fail-closed).
 
 ## [Unreleased]
 
+### Changed — BREAKING: `core/` is now exported from ml-platform
+
+- **`core/` is a one-way export of `libs/llm-core` in DuqueOM/ml-platform**,
+  which is authoritative for the agent core
+  ([platform-ADR-010](https://github.com/DuqueOM/ml-platform/blob/main/docs/decisions/ADR-010-agent-core-authority.md)).
+  The two copies had diverged since the migration: nine commits there, none
+  here since 2026-08-05, eleven of twelve shared files different. This brings
+  every fix made there since August — and a more agnostic core — back here.
+  Changes to `core/` now go to ml-platform and arrive on the next export.
+- **`core/EXPORTED_FROM.json` pins the provenance**: the source commit, the
+  library version and a SHA-256 of every exported file.
+  `tests/test_core_is_exported.py` recomputes them and fails on a hand edit or
+  a stray module — without needing ml-platform to be reachable.
+- **BREAKING — `load_agent(name)` is gone; compose instead.** The core no
+  longer imports `usecases.<name>`: a library that knows where its callers live
+  is not business-agnostic. Callers wire it —
+  `build_agent(load_usecase(USECASE_ROOT), build_registry(config))`.
+  `load_usecase` takes the use-case directory, not a name. `usecases/tienda`
+  now exports `USECASE_ROOT`; tests compose through `tests/conftest.py`'s
+  `tienda_agent()`; the app, as the composition root, is the only place that
+  still resolves a use-case by name.
+- **BREAKING — `MissingCredential` is `MissingCredentialError`.** Renamed at the
+  source; the fail-closed behaviour is unchanged.
+- `__version__` stays `0.7.0`: it is this distribution's release, which the
+  export preserves, and the library's own version is recorded in the
+  provenance file. Cutting a release for this change is a separate step.
+- `README.md` stops calling this repository "the business-agnostic upstream".
+  Nothing flowed from it; the direction runs from the platform.
+
 ### Fixed
 - **ADR-012 corrected the same day it was written — two claims were wrong, both
   from treating a single observation as a measurement.**

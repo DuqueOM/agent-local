@@ -5,8 +5,7 @@ import os
 
 import pytest
 
-from conftest import TierResolutionStub
-from core import load_agent
+from conftest import TierResolutionStub, tienda_agent
 from core.schemas import Route
 from core.telemetry import TelemetrySink, redact, redact_obj
 
@@ -83,7 +82,7 @@ def test_sink_disabled_when_no_path():
 
 
 def test_sink_writes_jsonl(tmp_path):
-    agent = load_agent("tienda")
+    agent = tienda_agent()
     agent.tiers = FakeTiers(["NONE", "hola"])
     agent.router.route = lambda m: _route()  # type: ignore[assignment]
     path = tmp_path / "t.jsonl"
@@ -102,7 +101,7 @@ def test_sink_writes_jsonl(tmp_path):
 # --- contract via agent.handle -------------------------------------------
 @pytest.fixture
 def agent():
-    return load_agent("tienda")
+    return tienda_agent()
 
 
 def test_handle_emits_one_entry(agent):

@@ -1,3 +1,7 @@
+# GENERATED from DuqueOM/ml-platform libs/llm-core by scripts/export_llm_core.py.
+# Do not edit here: core/EXPORTED_FROM.json pins the source commit and every
+# file's hash, and tests/test_core_is_exported.py fails on drift. Change
+# ml-platform, then re-export (platform-ADR-010).
 """Tier-0 router — JSON output forced by a GBNF grammar.
 
 Objective escalation (executed in ``loop.py``, never in the prompt):
@@ -11,6 +15,8 @@ the use-case config.
 """
 
 from __future__ import annotations
+
+from typing import Any
 
 import httpx
 
@@ -33,7 +39,7 @@ class Router:
         self._grammar = config.router_grammar
         self._retry = RetryPolicy.from_config(config.tier_retry)
 
-    def _constraint(self) -> dict:
+    def _constraint(self) -> dict[str, Any]:
         """Output constraint appropriate to the Tier-0 endpoint (ADR-011).
 
         A local llama.cpp server takes the GBNF grammar, which makes malformed
@@ -59,7 +65,7 @@ class Router:
 
         Raises:
             httpx.HTTPError: If the server does not respond.
-            MissingCredential: If Tier 0 is remote and its key is unset.
+            MissingCredentialError: If Tier 0 is remote and its key is unset.
             pydantic.ValidationError: If the JSON output violates the schema.
             ValueError: If the emitted intent is not in ``allowed_intents``.
         """

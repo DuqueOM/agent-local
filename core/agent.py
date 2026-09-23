@@ -1,3 +1,7 @@
+# GENERATED from DuqueOM/ml-platform libs/llm-core by scripts/export_llm_core.py.
+# Do not edit here: core/EXPORTED_FROM.json pins the source commit and every
+# file's hash, and tests/test_core_is_exported.py fails on drift. Change
+# ml-platform, then re-export (platform-ADR-010).
 """The agent — a reusable, business-agnostic facade over a use-case (§F1.6/§F2.0).
 
 The 7-station loop (route -> plan -> tools -> reflect? -> generate -> critic? ->
@@ -13,6 +17,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+from typing import Any
 
 from .config import UsecaseConfig
 from .controller import ExecutiveController
@@ -36,7 +41,8 @@ _DEFAULT_PROMPTS = {
 class Agent:
     """Reusable agent bound to a single use-case configuration.
 
-    Construct via :func:`load_agent` which also wires the use-case tools.
+    Construct via :func:`build_agent`, given a loaded use-case and the caller's
+    tool registry.
 
     Args:
         config: The active :class:`UsecaseConfig`.
@@ -81,6 +87,6 @@ class Agent:
         """Fetch a prompt template by key, with a generic fallback."""
         return self.config.prompts.get(key, _DEFAULT_PROMPTS.get(key, ""))
 
-    def handle(self, message: str, customer_id: str = "") -> dict:
+    def handle(self, message: str, customer_id: str = "") -> dict[str, Any]:
         """Run the full loop for one message and return a result dict."""
         return self.controller.handle(message, customer_id)

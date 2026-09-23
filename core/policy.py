@@ -1,3 +1,7 @@
+# GENERATED from DuqueOM/ml-platform libs/llm-core by scripts/export_llm_core.py.
+# Do not edit here: core/EXPORTED_FROM.json pins the source commit and every
+# file's hash, and tests/test_core_is_exported.py fails on drift. Change
+# ml-platform, then re-export (platform-ADR-010).
 """Policy layer — a deterministic gate, NOT an LLM.
 
 INVARIANT (plan §F2.2): NO final response leaves without passing these checks.

@@ -8,7 +8,7 @@ import httpx
 import pytest
 
 from core.tiers import (
-    MissingCredential,
+    MissingCredentialError,
     RetryPolicy,
     TierClient,
     TierEndpoint,
@@ -165,14 +165,14 @@ def test_remote_endpoint_reads_credential_from_named_env_var(monkeypatch):
 def test_missing_credential_raises_rather_than_calling_unauthenticated(monkeypatch):
     monkeypatch.delenv("TEST_TIER_KEY", raising=False)
     ep = TierEndpoint.from_raw(_remote())
-    with pytest.raises(MissingCredential, match="TEST_TIER_KEY"):
+    with pytest.raises(MissingCredentialError, match="TEST_TIER_KEY"):
         ep.auth_headers()
 
 
 def test_blank_credential_is_treated_as_missing(monkeypatch):
     """An exported-but-empty variable is a misconfiguration, not a valid token."""
     monkeypatch.setenv("TEST_TIER_KEY", "   ")
-    with pytest.raises(MissingCredential):
+    with pytest.raises(MissingCredentialError):
         TierEndpoint.from_raw(_remote()).auth_headers()
 
 

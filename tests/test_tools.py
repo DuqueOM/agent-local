@@ -3,9 +3,11 @@
 import pytest
 from pydantic import BaseModel
 
-from core import load_agent, load_usecase
+from conftest import tienda_agent
+from core import load_usecase
 from core.schemas import Observation, ToolCall
 from core.tools import ToolRegistry
+from usecases.tienda import USECASE_ROOT as TIENDA
 from usecases.tienda import build_registry
 
 
@@ -16,7 +18,7 @@ def _ok(**data) -> Observation:
 @pytest.fixture(scope="module")
 def registry():
     """A populated tool registry for the 'tienda' use-case."""
-    config = load_usecase("tienda")
+    config = load_usecase(TIENDA)
     return build_registry(config)
 
 
@@ -153,7 +155,7 @@ def test_args_model_accepts_valid_input():
 
 def test_agent_registers_all_tools():
     """The Agent wires use-case tools + the generic semantic_retrieval tool."""
-    agent = load_agent("tienda")
+    agent = tienda_agent()
     expected = [
         "alias_lookup",
         "inventory_lookup",

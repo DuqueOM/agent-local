@@ -12,11 +12,12 @@ import pytest
 from core.config import load_usecase
 from core.policy import check_policy
 from core.schemas import Observation, Route
+from usecases.tienda import USECASE_ROOT as TIENDA
 
 
 @pytest.fixture(scope="module")
 def rules():
-    return load_usecase("tienda").policy_rules
+    return load_usecase(TIENDA).policy_rules
 
 
 def _route(intent="product_lookup", risk="low"):

@@ -6,8 +6,7 @@ admit/execute/release flow runs without any model server.
 
 import pytest
 
-from conftest import TierResolutionStub
-from core import load_agent
+from conftest import TierResolutionStub, tienda_agent
 from core.circuit import State
 from core.controller import RunContext, _coerce, _split_args
 from core.schemas import RequestBudget, Route
@@ -51,7 +50,7 @@ def _fixed_route(intent="smalltalk", tier=0, confidence=0.98, risk="low"):
 
 @pytest.fixture
 def agent():
-    a = load_agent("tienda")
+    a = tienda_agent()
     a.router.route = lambda msg: _fixed_route()  # type: ignore[assignment]
     return a
 

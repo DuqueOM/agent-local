@@ -1,3 +1,7 @@
+# GENERATED from DuqueOM/ml-platform libs/llm-core by scripts/export_llm_core.py.
+# Do not edit here: core/EXPORTED_FROM.json pins the source commit and every
+# file's hash, and tests/test_core_is_exported.py fails on drift. Change
+# ml-platform, then re-export (platform-ADR-010).
 """Typed contracts for the agent platform (spec-driven development).
 
 Every structure is a runtime-validated contract that also documents the
@@ -7,7 +11,7 @@ plain ``str`` here and constrained by the use-case grammar + allowed_intents.
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -52,7 +56,7 @@ class ToolCall(BaseModel):
     """A tool requested by the model — the APP executes it, never the model."""
 
     tool: str
-    args: dict
+    args: dict[str, Any]
 
 
 class Observation(BaseModel):
@@ -60,7 +64,7 @@ class Observation(BaseModel):
 
     tool: str
     ok: bool
-    data: dict
+    data: dict[str, Any]
     error: str | None = None
 
 
@@ -98,9 +102,9 @@ class TelemetryEntry(BaseModel):
     tool_failures: list[str]
     policy_verdict: Verdict
     critic_verdict: Literal["approved", "rejected", "skipped"]
-    latency_ms: dict  # {"route": int, "total": int, "tools": int, "model": int}
-    cost: dict  # {"tokens_by_tier": {"0": int, "1": int, "2": int, "3": int}}
+    latency_ms: dict[str, int]  # {"route": int, "total": int, "tools": int, "model": int}
+    cost: dict[str, Any]  # {"tokens_by_tier": {"0": int, "1": int, "2": int, "3": int}}
     budget_exhausted: bool
     outcome: Literal["answered", "clarified", "escalated", "failed"]
-    provenance: dict  # {"source": str, "reviewer": str | None, "quarantine": bool}
-    shadow: dict | None = None  # 10% routing shadow sample (plan §F3.6)
+    provenance: dict[str, Any]  # {"source": str, "reviewer": str | None, "quarantine": bool}
+    shadow: dict[str, Any] | None = None  # 10% routing shadow sample (plan §F3.6)

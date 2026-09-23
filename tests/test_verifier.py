@@ -6,8 +6,7 @@ tests are robust to loop ordering (plan/reflect/generate/critic).
 
 import pytest
 
-from conftest import TierResolutionStub
-from core import load_agent
+from conftest import TierResolutionStub, tienda_agent
 from core.schemas import Route
 
 
@@ -59,7 +58,7 @@ def _route(risk, tier=1):
 
 @pytest.fixture
 def agent():
-    return load_agent("tienda")
+    return tienda_agent()
 
 
 def _with_route(agent, risk, tier=1):

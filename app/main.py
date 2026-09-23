@@ -20,6 +20,7 @@ including ``/health``. This is the same invariant the template encodes as
 D-24; ``tests/test_app_serving_contract.py`` enforces it.
 """
 
+import importlib
 import logging
 import os
 import uuid
@@ -28,10 +29,15 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
-from core import __version__, load_agent
+from core import __version__, build_agent, load_usecase
 
 USECASE = os.environ.get("AGENT_USECASE", "tienda")
-AGENT = load_agent(USECASE)
+# The app is the composition root, so resolving a use-case by NAME lives here
+# and not in the core: the library takes a directory and a registry and never
+# learns where use-cases are kept (platform-ADR-001).
+_USECASE_MODULE = importlib.import_module(f"usecases.{USECASE}")
+_CONFIG = load_usecase(_USECASE_MODULE.USECASE_ROOT)
+AGENT = build_agent(_CONFIG, _USECASE_MODULE.build_registry(_CONFIG))
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
@@ -39,7 +45,7 @@ logger = logging.getLogger(__name__)
 # Startup credential preflight (ADR-011). Config loading stays pure so offline
 # tooling and tests can read a hybrid topology without holding provider keys;
 # a serving process must not. Without this, a missing key would surface as a
-# per-request MissingCredential that the controller absorbs into the safe
+# per-request MissingCredentialError that the controller absorbs into the safe
 # fallback — the service would look healthy while answering nothing.
 AGENT.config.preflight()
 logger.info(
