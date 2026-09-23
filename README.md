@@ -1,27 +1,33 @@
-> # 📦 Archived — this work continues in [ml-platform](https://github.com/DuqueOM/ml-platform)
+> # 🧬 Also the LLM plane of [ml-platform](https://github.com/DuqueOM/ml-platform) — and still standalone
 >
-> This repository is **complete and relocated**, not abandoned. Its core, its
-> use-case, its eval harness and its twelve ADRs are migrated **with their git
-> history** into the `ml-platform` monorepo, where the agent core becomes
-> `libs/llm-core` and the store assistant becomes `projects/store-assistant`.
+> This repository's core, use-case, eval harness and twelve ADRs were vendored
+> **with their git history** into the `ml-platform` monorepo, where the agent
+> core became `libs/llm-core` and the store assistant became
+> `projects/store-assistant`.
 >
-> **Why.** This repository carried an explicit cross-repository contract with
-> the sibling template — two CI configurations, two changelogs, two ADR sets,
-> two coherence systems, and a shared plan living in one repository while
-> governing another. Adding a third participant would have made that
-> coordination cost superlinear. Consolidation removes the coordination rather
-> than optimising it. The reasoning is recorded in full in
+> **This repository was not archived, and stays live.** The two are not the
+> same value: `ml-platform` gives this core *one particular, governed use*
+> inside a multi-project substrate, while `agent-local` remains the
+> **business-agnostic upstream** for anyone who wants the agent core without a
+> platform around it.
+>
+> **Why the code was consolidated.** This repository carried an explicit
+> cross-repository contract with the sibling template — two CI configurations,
+> two changelogs, two ADR sets, two coherence systems, and a shared plan living
+> in one repository while governing another. A third participant would have
+> made that coordination cost superlinear. Consolidation removes the
+> coordination rather than optimising it. The reasoning, and a dated
+> **Correction** reversing the original decision to archive this repository,
+> are both in
 > [ml-platform ADR-002](https://github.com/DuqueOM/ml-platform/blob/main/docs/decisions/ADR-002-absorbing-agent-local.md).
 >
-> The final commits here are worth reading on their own: ADR-011 and ADR-012
-> re-derived the tier topology from measured hardware, and ADR-012 carries a
-> same-day **Correction** section documenting two wrong claims — a budget taken
-> from a single reading of a fluctuating quantity, and a model rejected on a
-> benchmark that had been run under the assumption it was cited to justify.
-> Both are preserved rather than edited away. That episode is the founding
-> evidence for `ml-platform`'s verification rules.
->
-> Everything below describes this repository as it stood at archival.
+> The commits that closed this repository's first phase are worth reading on
+> their own: ADR-011 and ADR-012 re-derived the tier topology from measured
+> hardware, and ADR-012 carries a same-day **Correction** documenting two wrong
+> claims — a budget taken from a single reading of a fluctuating quantity, and
+> a model rejected on a benchmark that had been run under the assumption it was
+> cited to justify. Both are preserved rather than edited away. That episode is
+> the founding evidence for `ml-platform`'s verification rules.
 
 ---
 
@@ -35,26 +41,30 @@ fork of the core (see [ADR-001](docs/decisions/ADR-001-reusable-platform-not-tem
 
 The shipped example use-case, **`tienda`**, is a WhatsApp store assistant.
 
-> ### 🧬 Part of a lineage — this is chapter three, not a standalone repo
+> ### 🧬 Part of a lineage — standalone, and consumed by a platform
 >
-> This repository is the **LLM plane** of a deliberately connected ecosystem,
-> and the third step of a single evolution:
+> This repository is the **LLM plane** of a deliberately connected line of work:
 >
 > 1. **[ML-MLOps Portfolio](https://github.com/DuqueOM/ML-MLOps-Portfolio)** — three production ML services; the lessons were paid for here.
-> 2. **[ML-MLOps Production Template](https://github.com/DuqueOM/ML-MLOps-Production-Template)** — those lessons encoded as a reusable, governed scaffold for *tabular* ML on Kubernetes.
+> 2. **[ml-service-template](https://github.com/DuqueOM/ml-service-template)** — those lessons encoded as a governed scaffold for *classical* ML on Kubernetes (scikit-learn, XGBoost, LightGBM; single team, 1–5 models).
 > 3. **`agent-local` (this repo)** — the same governance philosophy (AUTO/CONSULT/STOP, eval-gated autonomy, policy-as-data, no fine-tuning yet) **generalized to a new domain**: local LLM agents.
+> 4. **[ml-platform](https://github.com/DuqueOM/ml-platform)** — the
+>    multi-project substrate above the template's boundary, which vendored
+>    this repository's core in as `libs/llm-core` and its use-case as
+>    `projects/store-assistant`.
 >
-> The two repos are **siblings with an explicit, bidirectional contract**, not
-> copies: `agent-local` reuses the template's Terraform/Kustomize when it needs
-> cloud, and runs the template's ADR-028 day-2 maintenance lanes on its local
-> tiers. The shared plan
-> [`ACTION_PLAN_LLM_AGENT.md`](https://github.com/DuqueOM/ML-MLOps-Production-Template/blob/main/docs/audit/ACTION_PLAN_LLM_AGENT.md)
-> governs **both** planes. See the template's *"Local model plane"* section and
-> this repo's [ADR-001](docs/decisions/ADR-001-reusable-platform-not-template.md).
+> **The cross-repository contract described here previously was dissolved, not
+> optimised.** `ml-platform` ADR-002 consolidated the code precisely so that no
+> plan document in one repository governs another. What remains is a one-way
+> relationship: the platform consumes this core; this repository depends on
+> nothing downstream of it, which is what keeps it business-agnostic. See
+> [ADR-001](docs/decisions/ADR-001-reusable-platform-not-template.md) for why
+> that agnosticism is the property worth protecting.
 
 > **Status**: Phase 1 (read-only, fixtures). Routing quality gate **PASSED
-> (19/20)** on the Tier-0 router. Code is structured for the full multi-tier
-> stack.
+> (20/20)** on the Tier-0 router — an initial 19/20 was re-scored after
+> `bench/RESULTS.md` found the router right and the gold label wrong. Code is
+> structured for the full multi-tier stack.
 
 ---
 
