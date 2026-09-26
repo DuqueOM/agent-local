@@ -9,8 +9,11 @@ Either way the edit belongs in ml-platform, and this is where that becomes a red
 build instead of a surprise.
 
 The check needs nothing but this repository: no network, no checkout of
-ml-platform. It proves *this copy is untouched since the export*, not *this copy
-is current* — the second is ml-platform's ``export_llm_core.py --check``.
+ml-platform. That is also its limit: the hashes it trusts live in the directory
+it checks, so an edit that updates ``EXPORTED_FROM.json`` as well passes here
+(QA-4 round twelve on ml-platform, P2-5). It catches the careless edit. The
+guard that binds is CI's ``export-provenance`` job, which re-runs ml-platform's
+exporter at the recorded commit and compares, taking the verdict from the source.
 """
 
 import hashlib
@@ -55,8 +58,8 @@ def test_the_provenance_is_a_clean_full_sha():
     This checks the SHA's FORM only: forty hex digits, no ``-dirty`` suffix. It
     does not — cannot, without ml-platform reachable — check that the commit
     exists or is still reachable from ml-platform ``main``. A squash merge can
-    orphan the commit this names while this test stays green; the
-    re-export-from-main step in platform-ADR-010 is what closes that.
+    orphan the commit this names while this test stays green; CI's
+    ``export-provenance`` job refuses a commit that is not on ml-platform main.
     """
     commit = PROVENANCE["commit"]
     assert re.fullmatch(r"[0-9a-f]{40}", commit), f"not a clean, full commit SHA: {commit!r}"

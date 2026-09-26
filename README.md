@@ -10,7 +10,8 @@
 > ([platform-ADR-010](https://github.com/DuqueOM/ml-platform/blob/main/docs/decisions/ADR-010-agent-core-authority.md)),
 > and `core/` here is a one-way export of it: pinned to a source commit in
 > [`core/EXPORTED_FROM.json`](core/EXPORTED_FROM.json), with a hash of every
-> file that `tests/test_core_is_exported.py` checks. This repository is how to
+> file. CI re-runs the export at that commit and fails on any difference, so a
+> hand edit cannot pass by updating the hashes too. This repository is how to
 > take the agent core *without* the platform around it.
 >
 > **So changes to `core/` go to ml-platform**, and arrive here on the next

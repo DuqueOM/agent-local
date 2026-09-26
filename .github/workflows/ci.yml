@@ -63,6 +63,48 @@ jobs:
         # repo's scale (single maintainer, behavior-first test culture).
         run: pytest -q --cov=core --cov=app --cov=usecases --cov-report=term-missing
 
+  export-provenance:
+    # core/ is an export of ml-platform's libs/llm-core (platform-ADR-010).
+    # tests/test_core_is_exported.py recomputes each hash against
+    # core/EXPORTED_FROM.json, a file in the directory it is checking, so an
+    # edit to core/policy.py that also updates its hash passes it (QA-4 round
+    # twelve, P2-5). This job takes the verdict from the source instead: it
+    # re-runs the exporter at the commit the provenance names and compares.
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          path: agent-local
+
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          repository: DuqueOM/ml-platform
+          ref: main
+          path: ml-platform
+          fetch-depth: 0
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+
+      - name: Re-export at the recorded commit and compare
+        # The commit comes from the file under test, so it must be on
+        # ml-platform main: a commit from an unmerged pull request can be
+        # fetched by SHA, and its exporter could say anything. The exporter
+        # uses the standard library only; nothing is installed.
+        run: |
+          set -eu
+          commit=$(python -c 'import json,sys; print(json.load(open(sys.argv[1]))["commit"])' agent-local/core/EXPORTED_FROM.json)
+          git -C ml-platform merge-base --is-ancestor "$commit" HEAD || {
+            echo "::error::core/EXPORTED_FROM.json names $commit, which is not on ml-platform main. Re-export from main."
+            exit 1
+          }
+          git -C ml-platform checkout --quiet --detach "$commit"
+          python ml-platform/scripts/export_llm_core.py --dest agent-local --check
+
   gitleaks:
     # Secret scanning (AUDIT R8-12) — mirrors the sibling template's
     # pre-commit gitleaks gate at CI level. fetch-depth: 0 so the scan
