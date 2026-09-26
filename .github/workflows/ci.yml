@@ -10,6 +10,12 @@ on:
     branches: [main, master]
   pull_request:
     branches: [main, master]
+  # Weekly, so export-provenance notices a rewrite of ml-platform's history
+  # (which can orphan the commit EXPORTED_FROM.json names) without waiting for
+  # a push here (ml-platform QA-4 round thirteen, P3-6).
+  schedule:
+    - cron: "0 7 * * 1" # Mondays 07:00 UTC
+  workflow_dispatch:
 
 jobs:
   test:

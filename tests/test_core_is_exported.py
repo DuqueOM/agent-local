@@ -19,7 +19,10 @@ exporter at the recorded commit and compares, taking the verdict from the source
 import hashlib
 import json
 import re
+import shutil
 from pathlib import Path
+
+import pytest
 
 CORE = Path(__file__).resolve().parent.parent / "core"
 PROVENANCE = json.loads((CORE / "EXPORTED_FROM.json").read_text(encoding="utf-8"))
@@ -39,9 +42,45 @@ def test_every_exported_file_is_unchanged_since_the_export():
     )
 
 
+def _strays(core: Path) -> list[str]:
+    """Every entry under core/ the export did not produce, at any depth.
+
+    Not only top-level ``*.py``: a ``core/policy/`` package beside the exported
+    ``policy.py`` is imported instead of it, so the exported file stays
+    byte-identical, correctly hashed, and never loaded (ml-platform QA-4 round
+    thirteen, P2-1). A stub or a data file can change behaviour the same way.
+    ``__pycache__`` is Python's own and is left alone.
+    """
+    expected = set(PROVENANCE["files"]) | {"EXPORTED_FROM.json"}
+    found = []
+    for path in sorted(core.rglob("*")):
+        relative = path.relative_to(core)
+        if "__pycache__" in relative.parts:
+            continue
+        if path.is_dir() or relative.as_posix() not in expected:
+            found.append(relative.as_posix() + ("/" if path.is_dir() else ""))
+    return found
+
+
 def test_core_holds_nothing_the_export_did_not_produce():
-    stray = sorted(p.name for p in CORE.glob("*.py") if p.name not in PROVENANCE["files"])
-    assert not stray, f"core/ holds modules the export did not produce: {stray}"
+    stray = _strays(CORE)
+    assert not stray, f"core/ holds entries the export did not produce: {stray}"
+
+
+@pytest.mark.parametrize(
+    "entry",
+    ["policy/__init__.py", "_private.py", "policy.pyi", "data/rules.json"],
+    ids=["package", "underscore", "stub", "data"],
+)
+def test_the_stray_rule_sees_what_a_glob_of_py_files_missed(tmp_path, entry):
+    """The shadowing package from round thirteen, and its siblings, against a copy of core/."""
+    copy = tmp_path / "core"
+    shutil.copytree(CORE, copy, ignore=shutil.ignore_patterns("__pycache__"))
+    assert _strays(copy) == []
+    target = copy / entry
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text("SHADOWED = True\n", encoding="utf-8")
+    assert _strays(copy), f"{entry} was not reported"
 
 
 def test_the_version_is_the_distributions_own():
