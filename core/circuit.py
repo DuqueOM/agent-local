@@ -1,3 +1,7 @@
+# GENERATED from DuqueOM/ml-platform libs/llm-core by scripts/export_llm_core.py.
+# Do not edit here: core/EXPORTED_FROM.json pins the source commit and every
+# file's hash, and tests/test_core_is_exported.py fails on drift. Change
+# ml-platform, then re-export (platform-ADR-010).
 """In-memory per-tier circuit breaker (plan §F2.0).
 
 Each reasoning tier (the llama.cpp servers behind :class:`core.tiers.TierClient`)
@@ -26,12 +30,12 @@ truth. It resets on restart, which is the desired behaviour.
 from __future__ import annotations
 
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from enum import Enum
-from typing import Callable
+from enum import StrEnum
 
 
-class State(str, Enum):
+class State(StrEnum):
     """Circuit states for a single tier."""
 
     CLOSED = "closed"

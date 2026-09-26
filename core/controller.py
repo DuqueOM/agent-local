@@ -1,3 +1,7 @@
+# GENERATED from DuqueOM/ml-platform libs/llm-core by scripts/export_llm_core.py.
+# Do not edit here: core/EXPORTED_FROM.json pins the source commit and every
+# file's hash, and tests/test_core_is_exported.py fails on drift. Change
+# ml-platform, then re-export (platform-ADR-010).
 """ExecutiveController — the single facade every request flows through (§F2.0).
 
 Three phases, deliberately thin:
@@ -19,8 +23,8 @@ import json
 import random
 import time
 import uuid
-from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Literal
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING, Any, Literal
 
 from .circuit import CircuitBreaker
 from .policy import check_policy
@@ -93,7 +97,7 @@ def _coerce(value: str) -> object:
         return v
 
 
-class TierUnavailable(RuntimeError):
+class TierUnavailableError(RuntimeError):
     """Raised when every tier down to 0 has an open circuit."""
 
 
@@ -104,18 +108,18 @@ class ExecutiveController:
     across requests (the agent owns a single controller instance).
     """
 
-    def __init__(self, agent: "Agent", breaker: CircuitBreaker | None = None):
+    def __init__(self, agent: Agent, breaker: CircuitBreaker | None = None):
         self.agent = agent
         self.breaker = breaker or CircuitBreaker()
 
-    def handle(self, message: str, customer_id: str = "") -> dict:
+    def handle(self, message: str, customer_id: str = "") -> dict[str, Any]:
         ctx = RunContext(self.agent, message, customer_id, self.breaker)
         self.admit(ctx)
         self.execute(ctx)
         return self.release(ctx)
 
     # --- phase 1: admit ----------------------------------------------------
-    def admit(self, ctx: "RunContext") -> None:
+    def admit(self, ctx: RunContext) -> None:
         t0 = time.time()
         ctx.route = self.agent.router.route(ctx.message)
         ctx.latency_ms["route"] = int((time.time() - t0) * 1000)
@@ -140,7 +144,7 @@ class ExecutiveController:
             ctx.shadow = {"sampled": True, "would_route_tier": min(tier + 1, 3)}
 
     # --- phase 2: execute --------------------------------------------------
-    def execute(self, ctx: "RunContext") -> None:
+    def execute(self, ctx: RunContext) -> None:
         try:
             t1 = time.time()
             plan = ctx.plan(ctx.tier)
@@ -179,13 +183,13 @@ class ExecutiveController:
                     ctx.tier_final = outcome["tier"]
                     if not ctx.past_deadline():
                         ctx.final_response = ctx.generate(outcome["tier"])
-        except TierUnavailable:
+        except TierUnavailableError:
             # Every tier is unhealthy — degrade to a safe template (§F2.0).
             ctx.degraded = True
             ctx.final_response = self.agent._prompt("safe_fallback")
 
     # --- phase 3: release --------------------------------------------------
-    def release(self, ctx: "RunContext") -> dict:
+    def release(self, ctx: RunContext) -> dict[str, Any]:
         ctx.verdict = check_policy(ctx.route, ctx.final_response, ctx.observations, self.agent.config.policy_rules)
         if not ctx.verdict.approved:
             ctx.final_response = self.agent._prompt("safe_fallback")
@@ -200,7 +204,7 @@ class RunContext:
 
     Tier calls go through :meth:`call_tier`, which applies the circuit breaker
     so an unhealthy tier degrades to a lower one (or raises
-    :class:`TierUnavailable` when none remain).
+    :class:`TierUnavailableError` when none remain).
     """
 
     route: Route
@@ -209,7 +213,7 @@ class RunContext:
     final_response: str
     verdict: Verdict
 
-    def __init__(self, agent: "Agent", message: str, customer_id: str, breaker: CircuitBreaker):
+    def __init__(self, agent: Agent, message: str, customer_id: str, breaker: CircuitBreaker):
         self.agent = agent
         self.message = message
         self.customer_id = customer_id
@@ -224,8 +228,8 @@ class RunContext:
         self.deadline_exceeded = False
         self.escalated = False
         self.tier_final = 0
-        self.shadow: dict | None = None
-        self.critic_outcome: dict | None = None
+        self.shadow: dict[str, Any] | None = None
+        self.critic_outcome: dict[str, Any] | None = None
         self.start_time = time.time()
         self.deadline = float("inf")  # set in admit() once the budget is known
         self.latency_ms: dict[str, int] = {}
@@ -237,7 +241,7 @@ class RunContext:
         return time.time() >= self.deadline
 
     # --- tier access (circuit-breaker guarded) -----------------------------
-    def call_tier(self, tier: int, messages: list[dict], **kwargs) -> dict:
+    def call_tier(self, tier: int, messages: list[dict[str, Any]], **kwargs: Any) -> dict[str, Any]:
         # Bound a single call by the time left in the budget, so one slow tier
         # cannot itself overshoot the channel SLA (plan §F1.6).
         if "timeout" not in kwargs and self.deadline != float("inf"):
@@ -250,18 +254,18 @@ class RunContext:
         configured, _ = self.agent.tiers.resolve(tier)
         effective = self.breaker.effective_tier(configured)
         if effective is None:
-            raise TierUnavailable(f"all tiers <= {configured} are open")
+            raise TierUnavailableError(f"all tiers <= {configured} are open")
         try:
             response = self.agent.tiers.call(effective, messages, **kwargs)
         except Exception:
             self.breaker.record_failure(effective)
-            raise TierUnavailable(f"tier {effective} call failed") from None
+            raise TierUnavailableError(f"tier {effective} call failed") from None
         self.breaker.record_success(effective)
         self._track(effective, response)
         return response
 
     # --- stations ----------------------------------------------------------
-    def plan(self, tier: int) -> dict:
+    def plan(self, tier: int) -> dict[str, Any]:
         user = self.agent._prompt("plan_user").format(
             message=self.message,
             intent=self.route.intent,
@@ -274,14 +278,14 @@ class RunContext:
             {"role": "system", "content": self.agent._prompt("plan_system")},
             {"role": "user", "content": user},
         ]
-        kwargs: dict = {"max_tokens": 256, "temperature": 0}
+        kwargs: dict[str, Any] = {"max_tokens": 256, "temperature": 0}
         # Constrain the planner to the structured tool-call envelope (ADR-007),
         # mirroring how the router is constrained by its GBNF grammar.
         if self.agent.config.structured_tool_calls:
             kwargs["json_schema"] = self.agent.registry.planner_json_schema()
         return self.call_tier(tier, messages, **kwargs)
 
-    def extract_tool_calls(self, plan_response: dict) -> list[ToolCall]:
+    def extract_tool_calls(self, plan_response: dict[str, Any]) -> list[ToolCall]:
         """Parse the planner output into validated :class:`ToolCall` objects.
 
         Tries the structured JSON envelope first (ADR-007); falls back to the
@@ -338,7 +342,7 @@ class RunContext:
                 tool_name = line.split("(")[0].strip()
                 args_str = line[line.index("(") + 1 : line.rindex(")")]
                 if tool_name in self.agent.registry:
-                    args: dict = {}
+                    args: dict[str, Any] = {}
                     for part in _split_args(args_str):
                         if "=" in part:
                             key, val = part.split("=", 1)
@@ -408,7 +412,7 @@ class RunContext:
         response = self.call_tier(tier, messages, max_tokens=256, temperature=0.7)
         return extract_content(response)
 
-    def verify(self, gen_tier: int) -> dict:
+    def verify(self, gen_tier: int) -> dict[str, Any]:
         """Cross-tier verification of the generated answer (plan §F2.3).
 
         The verifier runs at a HIGHER tier than generation (a judge model, not
@@ -445,7 +449,7 @@ class RunContext:
         return "APPROVED" in extract_content(response).strip().upper()
 
     # --- helpers -----------------------------------------------------------
-    def _track(self, tier: int, response: dict) -> None:
+    def _track(self, tier: int, response: dict[str, Any]) -> None:
         usage = extract_usage(response)
         self.tokens_by_tier[tier] = self.tokens_by_tier.get(tier, 0) + usage.get("completion_tokens", 0)
 
@@ -469,7 +473,7 @@ class RunContext:
         """Build the per-request telemetry contract (plan §F3)."""
         total = int((time.time() - self.start_time) * 1000)
         return TelemetryEntry(
-            ts=datetime.now(timezone.utc).isoformat(),
+            ts=datetime.now(UTC).isoformat(),
             trace_id=self.trace_id,
             route=self.route,
             tier_final=self.tier_final,
@@ -492,7 +496,7 @@ class RunContext:
             shadow=self.shadow,
         )
 
-    def finalize(self) -> dict:
+    def finalize(self) -> dict[str, Any]:
         total = int((time.time() - self.start_time) * 1000)
         return {
             "response": self.final_response,

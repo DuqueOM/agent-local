@@ -1,3 +1,7 @@
+# GENERATED from DuqueOM/ml-platform libs/llm-core by scripts/export_llm_core.py.
+# Do not edit here: core/EXPORTED_FROM.json pins the source commit and every
+# file's hash, and tests/test_core_is_exported.py fails on drift. Change
+# ml-platform, then re-export (platform-ADR-010).
 """File-based retrieval with BM25 — chosen before any vector store.
 
 Indexes ``*.md`` documents in a use-case directory (policies, promotions,
@@ -8,8 +12,9 @@ NEVER stock/price here — that goes through tools backed by live APIs.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable
+from typing import Any
 
 from rank_bm25 import BM25Okapi
 
@@ -21,7 +26,7 @@ class BM25Index:
 
     def __init__(self, docs_dir: Path):
         self.docs_dir = Path(docs_dir)
-        self.docs: list[dict] = []
+        self.docs: list[dict[str, Any]] = []
         self.corpus: list[list[str]] = []
         self.bm25: BM25Okapi | None = None
 
@@ -36,7 +41,7 @@ class BM25Index:
         if self.corpus:
             self.bm25 = BM25Okapi(self.corpus)
 
-    def search(self, query: str, k: int = 3, max_chars: int | None = None) -> list[dict]:
+    def search(self, query: str, k: int = 3, max_chars: int | None = None) -> list[dict[str, Any]]:
         """Return the top-k most relevant documents.
 
         Args:
@@ -73,9 +78,7 @@ class BM25Index:
         return results
 
 
-def make_semantic_retrieval(
-    index: BM25Index, max_chars: int | None = None
-) -> "Callable[..., Observation]":  # noqa: F821
+def make_semantic_retrieval(index: BM25Index, max_chars: int | None = None) -> Callable[..., Observation]:
     """Build a ``semantic_retrieval`` tool bound to a specific index.
 
     Args:

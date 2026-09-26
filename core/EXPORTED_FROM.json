@@ -1,0 +1,22 @@
+{
+  "commit": "f8400f773d0b58970d472d5653a80d72bddefa94",
+  "distribution_version": "0.7.0",
+  "exporter": "scripts/export_llm_core.py",
+  "files": {
+    "__init__.py": "40b3316ca85cd9f46e1f6b2f93e39747c5ed79b18a77e97e2c307ba0f28abb87",
+    "agent.py": "f771360c05ea52bb8567b48415763d42a9b1621e7c79166d42b0f3eb84a69054",
+    "circuit.py": "9f21f9f8e54e774762a9013ffce4f7ad13ae6b4c129e7e493d0c3e8b1c776d20",
+    "config.py": "d6661889d0c9bf64aafad4e1e0eba307cb575136056f7579aa05bdd2b15d4fee",
+    "controller.py": "5b6476227a42cbc46b627be5e9ccf755d059d4058ef7e813a11debc9bb7abceb",
+    "policy.py": "16d9a6f232ff1bdc7a7b762452c416a63120f8e477c3cac49518f18f26b8eecc",
+    "retrieval.py": "e29bbc941ca6eef0a0a076e6ca800ac1ad31e32f228aeff2ab3c40a6a653ca01",
+    "router.py": "bdf2236fe542c781bdd42431525584773231695871ef98bd6b9c0755781fb9c8",
+    "schemas.py": "115f4be20bd3e01dce0540ca2aa27d1dd1e605df157d561535d3fe72bbb9bada",
+    "telemetry.py": "1196f8ecd86ac9d67dc59b44b57892edc0cdc460652cd6e1e04ba251bd85d8bf",
+    "tiers.py": "b3abfd366d099915478140daa6a1470fa8bf09e9dcca2bb46ec0f1e8c61072d0",
+    "tools.py": "9b61f5757c8a1646fa198bcd8d227f4b60ea6f8a21356cba9c14bcafafbae416"
+  },
+  "library_version": "0.2.0",
+  "path": "libs/llm-core/src/llm_core",
+  "source": "DuqueOM/ml-platform"
+}

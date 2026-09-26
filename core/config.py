@@ -1,3 +1,7 @@
+# GENERATED from DuqueOM/ml-platform libs/llm-core by scripts/export_llm_core.py.
+# Do not edit here: core/EXPORTED_FROM.json pins the source commit and every
+# file's hash, and tests/test_core_is_exported.py fails on drift. Change
+# ml-platform, then re-export (platform-ADR-010).
 """Use-case configuration loader.
 
 The platform core is business-agnostic. Everything domain-specific (router
@@ -16,14 +20,23 @@ import os
 import re
 from dataclasses import dataclass, field, replace
 from pathlib import Path
+from typing import Any
 
 import yaml
 
 from .tiers import LOCAL, REMOTE, TierEndpoint
 
 # Repository root (…/agent-local). ``core`` lives one level below it.
-REPO_ROOT = Path(__file__).resolve().parent.parent
-USECASES_ROOT = REPO_ROOT / "usecases"
+# No `USECASES_ROOT`. The source repository resolved use-cases against its own
+# layout — `REPO_ROOT / "usecases" / name` — which made this library know where
+# projects live. platform-ADR-001 places that squarely on the wrong side of the boundary
+# (`llm-core` must not know a feature name, let alone a directory tree), and
+# `tests/test_dependency_direction.py` enforces it: a library reaching into
+# `projects/` is the coupling the monorepo exists to prevent.
+#
+# So the caller passes the directory. That is also what makes the library
+# testable without a domain: the tests here build a synthetic use-case in a
+# temporary directory rather than depending on whichever one happens to exist.
 
 # ``${VAR}`` / ``${VAR:-default}`` substitution for endpoint URLs and model ids,
 # so one committed config serves every topology profile (ADR-011) and no
@@ -108,14 +121,14 @@ class UsecaseConfig:
     tier_endpoints: dict[int, TierEndpoint]
     router_prompt: str
     router_grammar: str
-    budgets: dict
+    budgets: dict[str, Any]
     policy_rules: PolicyRules
     prompts: dict[str, str]
     retrieval_dir: Path
     fixtures_dir: Path
-    verification: dict = field(default_factory=dict)
-    telemetry: dict = field(default_factory=dict)
-    tier_retry: dict = field(default_factory=dict)
+    verification: dict[str, Any] = field(default_factory=dict[str, Any])
+    telemetry: dict[str, Any] = field(default_factory=dict[str, Any])
+    tier_retry: dict[str, Any] = field(default_factory=dict[str, Any])
     phase: int = 1
     observation_max_chars: int = 4000
     retrieval_max_chars: int = 2000
@@ -164,17 +177,20 @@ class UsecaseConfig:
         a per-request degradation to the safe fallback.
 
         Raises:
-            MissingCredential: If a remote tier's ``api_key_env`` is unset.
+            MissingCredentialError: If a remote tier's ``api_key_env`` is unset.
         """
         for tier in sorted(self.tier_endpoints):
             self.tier_endpoints[tier].auth_headers()
 
 
-def load_usecase(name: str) -> UsecaseConfig:
-    """Load a use-case configuration by name.
+def load_usecase(root: Path) -> UsecaseConfig:
+    """Load a use-case configuration from its directory.
 
     Args:
-        name: Folder name under ``usecases/`` (e.g. ``"tienda"``).
+        root: The use-case directory, holding `config.yaml` and the prompt,
+            grammar and policy files it names. Passed explicitly rather than
+            resolved from a name — see the note where `USECASES_ROOT` used to
+            be.
 
     Returns:
         A fully-populated, immutable :class:`UsecaseConfig`.
@@ -183,9 +199,13 @@ def load_usecase(name: str) -> UsecaseConfig:
         FileNotFoundError: If the use-case folder or its ``config.yaml`` is
             missing, or if a referenced prompt/grammar file does not exist.
     """
-    root = USECASES_ROOT / name
     if not root.is_dir():
         raise FileNotFoundError(f"Use-case folder not found: {root}")
+
+    # The directory name still identifies the use-case in error messages — it
+    # is what a reader recognises. What changed is that it is DERIVED from the
+    # path the caller gave rather than used to find it.
+    name = root.name
 
     config_path = root / "config.yaml"
     if not config_path.is_file():

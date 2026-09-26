@@ -1,3 +1,7 @@
+# GENERATED from DuqueOM/ml-platform libs/llm-core by scripts/export_llm_core.py.
+# Do not edit here: core/EXPORTED_FROM.json pins the source commit and every
+# file's hash, and tests/test_core_is_exported.py fails on drift. Change
+# ml-platform, then re-export (platform-ADR-010).
 """Tier clients — a thin abstraction over OpenAI-compatible chat endpoints.
 
 Endpoints are injected from the use-case config so the core never hardcodes a
@@ -22,9 +26,9 @@ from __future__ import annotations
 import os
 import random
 import time
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
-from typing import Callable, TypeVar
+from typing import Any, TypeVar
 
 import httpx
 
@@ -42,7 +46,7 @@ CPU = "cpu"
 DEVICES = (GPU, CPU)
 
 
-class MissingCredential(RuntimeError):
+class MissingCredentialError(RuntimeError):
     """A remote tier declares ``api_key_env`` but that variable is unset.
 
     Raised rather than silently calling an unauthenticated endpoint. Prefer
@@ -109,7 +113,7 @@ class TierEndpoint:
         return self.is_local
 
     @classmethod
-    def from_raw(cls, raw: "str | dict | TierEndpoint") -> "TierEndpoint":
+    def from_raw(cls, raw: str | dict[str, Any] | TierEndpoint) -> TierEndpoint:
         """Build an endpoint from config — a bare URL string or a mapping.
 
         A plain string is treated as a local endpoint so pre-ADR-011 configs
@@ -155,19 +159,19 @@ class TierEndpoint:
         """Build request headers, resolving the credential from the environment.
 
         Raises:
-            MissingCredential: If ``api_key_env`` is set but the variable is
+            MissingCredentialError: If ``api_key_env`` is set but the variable is
                 absent or empty.
         """
         if not self.api_key_env:
             return {}
         token = os.environ.get(self.api_key_env, "").strip()
         if not token:
-            raise MissingCredential(
+            raise MissingCredentialError(
                 f"tier endpoint {self.url!r} needs environment variable {self.api_key_env!r}, which is unset"
             )
         return {"Authorization": f"Bearer {token}"}
 
-    def payload_extras(self) -> dict:
+    def payload_extras(self) -> dict[str, Any]:
         """Payload fields the endpoint requires (currently just ``model``)."""
         return {"model": self.model} if self.model else {}
 
@@ -197,7 +201,7 @@ class RetryPolicy:
     jitter: float = 0.25
 
     @classmethod
-    def from_config(cls, raw: dict | None) -> "RetryPolicy":
+    def from_config(cls, raw: dict[str, Any] | None) -> RetryPolicy:
         """Build a policy from a use-case ``tiers.retry`` block (or defaults)."""
         raw = raw or {}
         return cls(
@@ -220,9 +224,7 @@ def is_retryable(exc: Exception) -> bool:
         return status == 429 or status >= 500
     if isinstance(exc, httpx.TimeoutException):
         return True
-    if isinstance(exc, httpx.TransportError):
-        return True
-    return False
+    return isinstance(exc, httpx.TransportError)
 
 
 def _retry_after_seconds(exc: Exception) -> float | None:
@@ -238,7 +240,7 @@ def _retry_after_seconds(exc: Exception) -> float | None:
 
 
 def _backoff_delay(attempt: int, policy: RetryPolicy) -> float:
-    base = min(policy.base_delay * (2**attempt), policy.max_delay)
+    base: float = min(policy.base_delay * (2**attempt), policy.max_delay)
     return base + random.random() * policy.jitter * base
 
 
@@ -264,7 +266,7 @@ def with_retry(
     for attempt in range(policy.max_retries + 1):
         try:
             return operation()
-        except Exception as exc:  # noqa: BLE001 - reclassified below
+        except Exception as exc:
             last = exc
             if attempt >= policy.max_retries or not is_retryable(exc):
                 raise
@@ -276,7 +278,7 @@ def with_retry(
     raise last
 
 
-def adapt_constraints(payload: dict, endpoint: TierEndpoint) -> dict:
+def adapt_constraints(payload: dict[str, Any], endpoint: TierEndpoint) -> dict[str, Any]:
     """Translate output-constraint fields to the dialect the endpoint speaks.
 
     ``grammar`` (GBNF) and a bare ``json_schema`` field are llama.cpp
@@ -318,7 +320,15 @@ class TierClient:
         retry: Transient-failure policy; defaults to :class:`RetryPolicy`.
     """
 
-    def __init__(self, endpoints: Mapping[int, TierEndpoint | str], retry: RetryPolicy | None = None):
+    def __init__(
+        self,
+        # A mapping spec too, not only a URL or a built endpoint: `from_raw`
+        # has always accepted all three, and the narrower annotation described
+        # two of them. The tests pass the mapping form, which is also what a
+        # `config.yaml` produces.
+        endpoints: Mapping[int, TierEndpoint | str | dict[str, Any]],
+        retry: RetryPolicy | None = None,
+    ):
         self._endpoints = {tier: TierEndpoint.from_raw(raw) for tier, raw in endpoints.items()}
         self._retry = retry or RetryPolicy()
 
@@ -352,12 +362,12 @@ class TierClient:
     def call(
         self,
         tier: int,
-        messages: list[dict],
+        messages: list[dict[str, Any]],
         max_tokens: int = 512,
         temperature: float = 0.7,
         timeout: int = 60,
-        **kwargs,
-    ) -> dict:
+        **kwargs: Any,
+    ) -> dict[str, Any]:
         """Call a specific tier, degrading to the nearest configured one below it.
 
         Args:
@@ -374,7 +384,7 @@ class TierClient:
 
         Raises:
             httpx.HTTPError: If the server does not respond successfully.
-            MissingCredential: If the tier needs a credential that is unset.
+            MissingCredentialError: If the tier needs a credential that is unset.
             KeyError: If no tier at or below ``tier`` is configured.
         """
         _, endpoint = self.resolve(tier)
@@ -390,19 +400,25 @@ class TierClient:
             endpoint,
         )
 
-        def _attempt() -> dict:
+        def _attempt() -> dict[str, Any]:
             response = httpx.post(endpoint.url, json=payload, headers=headers, timeout=timeout)
             response.raise_for_status()
-            return response.json()
+            # `httpx.Response.json()` is typed `Any`; the tier contract says it
+            # is an object, and `warn_return_any` is right to want that said
+            # here rather than inferred at every call site.
+            body: dict[str, Any] = response.json()
+            return body
 
         return with_retry(_attempt, self._retry)
 
 
-def extract_content(response: dict) -> str:
+def extract_content(response: dict[str, Any]) -> str:
     """Extract the assistant text from a tier response."""
-    return response["choices"][0]["message"]["content"]
+    content: str = response["choices"][0]["message"]["content"]
+    return content
 
 
-def extract_usage(response: dict) -> dict:
+def extract_usage(response: dict[str, Any]) -> dict[str, Any]:
     """Extract token usage metrics (``completion_tokens`` etc.)."""
-    return response.get("usage", {})
+    usage: dict[str, Any] = response.get("usage", {})
+    return usage

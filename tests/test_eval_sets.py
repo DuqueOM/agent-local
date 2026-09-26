@@ -12,6 +12,7 @@ from pathlib import Path
 import pytest
 
 from core.config import load_usecase
+from usecases.tienda import USECASE_ROOT as TIENDA
 
 USECASE = "tienda"
 SETS_DIR = Path(__file__).resolve().parent.parent / "usecases" / USECASE / "evals" / "sets"
@@ -36,7 +37,7 @@ REQUIRED_FIELDS = {"input", "expected_intent", "expected_tier", "expected_finali
 
 @pytest.fixture(scope="module")
 def allowed_intents():
-    return set(load_usecase(USECASE).allowed_intents)
+    return set(load_usecase(TIENDA).allowed_intents)
 
 
 def _set_files():

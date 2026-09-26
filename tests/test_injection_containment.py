@@ -19,8 +19,7 @@ from __future__ import annotations
 
 import pytest
 
-from conftest import TierResolutionStub
-from core import load_agent
+from conftest import TierResolutionStub, tienda_agent
 from core.schemas import Route
 
 
@@ -56,7 +55,7 @@ def _route(intent="product_lookup", tier=1, risk="low"):
 
 @pytest.fixture
 def agent():
-    a = load_agent("tienda")
+    a = tienda_agent()
     return a
 
 

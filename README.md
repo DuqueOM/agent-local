@@ -5,11 +5,18 @@
 > core became `libs/llm-core` and the store assistant became
 > `projects/store-assistant`.
 >
-> **This repository was not archived, and stays live.** The two are not the
-> same value: `ml-platform` gives this core *one particular, governed use*
-> inside a multi-project substrate, while `agent-local` is the **standalone
-> version** of that core, for anyone who wants it without a platform around
-> it. The core itself is developed in `ml-platform`.
+> **This repository was not archived, and stays live — as a distribution.**
+> `ml-platform`'s `libs/llm-core` is authoritative for the agent core
+> ([platform-ADR-010](https://github.com/DuqueOM/ml-platform/blob/main/docs/decisions/ADR-010-agent-core-authority.md)),
+> and `core/` here is a one-way export of it: pinned to a source commit in
+> [`core/EXPORTED_FROM.json`](core/EXPORTED_FROM.json), with a hash of every
+> file. CI re-runs the export at that commit and fails on any difference, so a
+> hand edit cannot pass by updating the hashes too. This repository is how to
+> take the agent core *without* the platform around it.
+>
+> **So changes to `core/` go to ml-platform**, and arrive here on the next
+> export. Everything outside `core/` — the `tienda` use-case, the app, the
+> evaluation harness — is this repository's own.
 >
 > **Why the code was consolidated.** This repository carried an explicit
 > cross-repository contract with the sibling template — two CI configurations,
@@ -41,7 +48,7 @@ fork of the core (see [ADR-001](docs/decisions/ADR-001-reusable-platform-not-tem
 
 The shipped example use-case, **`tienda`**, is a WhatsApp store assistant.
 
-> ### 🧬 Part of a lineage — standalone, and consumed by a platform
+> ### 🧬 Part of a lineage — standalone, and exported from a platform
 >
 > This repository is the **LLM plane** of a deliberately connected line of work:
 >
@@ -51,16 +58,17 @@ The shipped example use-case, **`tienda`**, is a WhatsApp store assistant.
 > 4. **[ml-platform](https://github.com/DuqueOM/ml-platform)** — the
 >    multi-project substrate above the template's boundary, which vendored
 >    this repository's core in as `libs/llm-core` and its use-case as
->    `projects/store-assistant`.
+>    `projects/store-assistant` — and which is now authoritative for that core.
 >
 > **The cross-repository contract described here previously was dissolved, not
-> optimised.** `ml-platform` ADR-002 consolidated the code precisely so that no
-> plan document in one repository governs another. What remains is one-way,
-> and it runs *from* the platform: the core is developed there, and this
-> repository is its standalone version. It stays business-agnostic because it
-> depends on nothing downstream of it. See
-> [ADR-001](docs/decisions/ADR-001-reusable-platform-not-template.md) for why
-> that agnosticism is the property worth protecting.
+> optimised.** `ml-platform` platform-ADR-002 consolidated the code precisely
+> so that no plan document in one repository governs another. What remains is
+> one-way, and it runs *from* the platform: the core is developed there and
+> exported here. It stays business-agnostic because the platform enforces it —
+> its library may not import a use-case, so the exported core resolves none by
+> name, and `build_agent(load_usecase(root), registry)` is wired by the caller.
+> See [ADR-001](docs/decisions/ADR-001-reusable-platform-not-template.md) for
+> why that agnosticism is the property worth protecting.
 
 > **Status**: Phase 1 (read-only, fixtures). Routing quality gate **PASSED
 > (20/20)** on the Tier-0 router — an initial 19/20 was re-scored after

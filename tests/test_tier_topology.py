@@ -17,7 +17,8 @@ import pytest
 import yaml
 
 from core.config import expand_env, load_usecase
-from core.tiers import MissingCredential
+from core.tiers import MissingCredentialError
+from usecases.tienda import USECASE_ROOT as TIENDA
 
 # Every remote tier variable the shipped use-case reads. Tests clear them so a
 # developer's real .env can never make an assertion pass or fail by accident.
@@ -70,7 +71,7 @@ def test_bare_environment_yields_local_only_profile():
     This is the profile a 16 GB workstation runs: one resident model, no
     credentials, and escalation that resolves downward instead of failing.
     """
-    config = load_usecase("tienda")
+    config = load_usecase(TIENDA)
 
     assert config.topology_profile == "local-only"
     assert sorted(config.tier_endpoints) == [0]
@@ -82,7 +83,7 @@ def test_exporting_provider_variables_yields_hybrid_profile(monkeypatch):
     for tier in (1, 2, 3):
         _enable_tier(monkeypatch, tier)
 
-    config = load_usecase("tienda")
+    config = load_usecase(TIENDA)
 
     assert config.topology_profile == "hybrid"
     assert sorted(config.tier_endpoints) == [0, 1, 2, 3]
@@ -95,7 +96,7 @@ def test_partial_export_enables_only_the_configured_tiers(monkeypatch):
     """Tiers are independently switchable; a gap resolves down at call time."""
     _enable_tier(monkeypatch, 2)
 
-    config = load_usecase("tienda")
+    config = load_usecase(TIENDA)
 
     assert sorted(config.tier_endpoints) == [0, 2]
     assert config.topology_profile == "hybrid"
@@ -108,7 +109,7 @@ def test_all_remote_profile_has_no_resident_model(monkeypatch):
     monkeypatch.setenv("AGENT_TIER0_API_KEY_ENV", "AGENT_TIER0_API_KEY")
     _enable_tier(monkeypatch, 2)
 
-    config = load_usecase("tienda")
+    config = load_usecase(TIENDA)
 
     assert config.topology_profile == "all-remote"
     assert config.local_tiers == []
@@ -122,13 +123,13 @@ def test_remote_tier_without_model_fails_at_load(monkeypatch):
     # AGENT_TIER1_MODEL deliberately unset
 
     with pytest.raises(ValueError, match="requires a 'model'"):
-        load_usecase("tienda")
+        load_usecase(TIENDA)
 
 
 # --- resident-memory invariant ---------------------------------------------
 
 
-def _write_usecase(tmp_path, monkeypatch, tier_endpoints: dict, limits: dict | None = None):
+def _write_usecase(tmp_path, tier_endpoints: dict, limits: dict | None = None):
     """Materialise a minimal use-case so invariants can be tested in isolation."""
     root = tmp_path / "usecases" / "probe"
     (root / "prompts").mkdir(parents=True)
@@ -147,10 +148,10 @@ def _write_usecase(tmp_path, monkeypatch, tier_endpoints: dict, limits: dict | N
             }
         )
     )
-    monkeypatch.setattr("core.config.USECASES_ROOT", tmp_path / "usecases")
+    return root
 
 
-def test_second_local_tier_is_rejected(tmp_path, monkeypatch):
+def test_second_local_tier_is_rejected(tmp_path):
     """Two resident models is the failure this invariant exists to prevent.
 
     A workstation cannot hold two quantised models; without this gate the
@@ -159,7 +160,6 @@ def test_second_local_tier_is_rejected(tmp_path, monkeypatch):
     """
     _write_usecase(
         tmp_path,
-        monkeypatch,
         {
             0: {"url": "http://127.0.0.1:8091/v1", "kind": "local"},
             1: {"url": "http://127.0.0.1:8092/v1", "kind": "local"},
@@ -167,13 +167,12 @@ def test_second_local_tier_is_rejected(tmp_path, monkeypatch):
     )
 
     with pytest.raises(ValueError, match="max_local_tiers"):
-        load_usecase("probe")
+        load_usecase(tmp_path / "usecases" / "probe")
 
 
-def test_extra_local_tiers_allowed_when_the_cap_is_raised_deliberately(tmp_path, monkeypatch):
+def test_extra_local_tiers_allowed_when_the_cap_is_raised_deliberately(tmp_path):
     _write_usecase(
         tmp_path,
-        monkeypatch,
         {
             0: {"url": "http://127.0.0.1:8091/v1", "kind": "local"},
             1: {"url": "http://127.0.0.1:8092/v1", "kind": "local"},
@@ -181,12 +180,12 @@ def test_extra_local_tiers_allowed_when_the_cap_is_raised_deliberately(tmp_path,
         limits={"max_local_tiers": 2},
     )
 
-    config = load_usecase("probe")
+    config = load_usecase(tmp_path / "usecases" / "probe")
 
     assert config.local_tiers == [0, 1]
 
 
-def test_weights_exceeding_the_device_budget_are_rejected(tmp_path, monkeypatch):
+def test_weights_exceeding_the_device_budget_are_rejected(tmp_path):
     """The measured failure: a 5.0 GiB model placed on a 4.0 GiB CPU budget.
 
     This is what a container running `-ngl 99` with no GPU reservation
@@ -195,59 +194,55 @@ def test_weights_exceeding_the_device_budget_are_rejected(tmp_path, monkeypatch)
     """
     _write_usecase(
         tmp_path,
-        monkeypatch,
         {0: {"url": "http://127.0.0.1:8091/v1", "kind": "local", "device": "cpu", "weights_gb": 5.0}},
         limits={"memory_budget_gb": {"gpu": 5.8, "cpu": 4.0}},
     )
 
     with pytest.raises(ValueError, match=r"5\.0 GiB of weights on device 'cpu'"):
-        load_usecase("probe")
+        load_usecase(tmp_path / "usecases" / "probe")
 
 
-def test_same_weights_fit_on_the_gpu_budget(tmp_path, monkeypatch):
+def test_same_weights_fit_on_the_gpu_budget(tmp_path):
     """Identical model, different device, different verdict — the whole point."""
     _write_usecase(
         tmp_path,
-        monkeypatch,
         {0: {"url": "http://127.0.0.1:8091/v1", "kind": "local", "device": "gpu", "weights_gb": 5.0}},
         limits={"memory_budget_gb": {"gpu": 5.8, "cpu": 4.0}},
     )
 
-    config = load_usecase("probe")
+    config = load_usecase(tmp_path / "usecases" / "probe")
 
     assert config.tier_endpoints[0].device == "gpu"
     assert config.tier_endpoints[0].memory_pool == "gpu"
 
 
-def test_device_budget_check_is_skipped_when_weights_are_undeclared(tmp_path, monkeypatch):
+def test_device_budget_check_is_skipped_when_weights_are_undeclared(tmp_path):
     """Absent `weights_gb` means "unknown", not "zero-cost" — but it must not
     block a use-case that has not measured its model yet."""
     _write_usecase(
         tmp_path,
-        monkeypatch,
         {0: {"url": "http://127.0.0.1:8091/v1", "kind": "local", "device": "cpu"}},
         limits={"memory_budget_gb": {"cpu": 4.0}},
     )
 
-    assert load_usecase("probe").tier_endpoints[0].weights_gb == 0.0
+    assert load_usecase(tmp_path / "usecases" / "probe").tier_endpoints[0].weights_gb == 0.0
 
 
-def test_unknown_device_is_rejected(tmp_path, monkeypatch):
+def test_unknown_device_is_rejected(tmp_path):
     _write_usecase(
         tmp_path,
-        monkeypatch,
         {0: {"url": "http://127.0.0.1:8091/v1", "kind": "local", "device": "tpu"}},
     )
 
     with pytest.raises(ValueError, match="device must be one of"):
-        load_usecase("probe")
+        load_usecase(tmp_path / "usecases" / "probe")
 
 
 def test_remote_tiers_are_charged_to_no_device_budget(monkeypatch):
     """A remote tier costs tokens, not memory — it must not consume a budget."""
     _enable_tier(monkeypatch, 1)
 
-    config = load_usecase("tienda")
+    config = load_usecase(TIENDA)
 
     assert config.tier_endpoints[1].memory_pool is None
     assert config.tier_endpoints[0].memory_pool == "gpu"
@@ -258,19 +253,19 @@ def test_container_rehost_preserves_device_and_weights(monkeypatch):
     disarm the budget check inside the container."""
     monkeypatch.setenv("LLAMA_HOST", "llama-e4b")
 
-    endpoint = load_usecase("tienda").tier_endpoints[0]
+    endpoint = load_usecase(TIENDA).tier_endpoints[0]
 
     assert "llama-e4b" in endpoint.url
     assert endpoint.device == "gpu"
     assert endpoint.weights_gb == 4.95
 
 
-def test_missing_tier_zero_is_rejected(tmp_path, monkeypatch):
+def test_missing_tier_zero_is_rejected(tmp_path):
     """Tier 0 is the router and the degradation floor — never optional."""
-    _write_usecase(tmp_path, monkeypatch, {2: {"url": "http://127.0.0.1:8093/v1", "kind": "local"}})
+    _write_usecase(tmp_path, {2: {"url": "http://127.0.0.1:8093/v1", "kind": "local"}})
 
     with pytest.raises(ValueError, match="no Tier 0 endpoint"):
-        load_usecase("probe")
+        load_usecase(tmp_path / "usecases" / "probe")
 
 
 # --- startup preflight ------------------------------------------------------
@@ -278,7 +273,7 @@ def test_missing_tier_zero_is_rejected(tmp_path, monkeypatch):
 
 def test_preflight_passes_when_credentials_are_present(monkeypatch):
     _enable_tier(monkeypatch, 1)
-    load_usecase("tienda").preflight()  # must not raise
+    load_usecase(TIENDA).preflight()  # must not raise
 
 
 def test_preflight_fails_when_a_declared_credential_is_absent(monkeypatch):
@@ -286,11 +281,11 @@ def test_preflight_fails_when_a_declared_credential_is_absent(monkeypatch):
     monkeypatch.setenv("AGENT_TIER1_MODEL", "provider-model-id")
     monkeypatch.delenv("AGENT_TIER1_API_KEY", raising=False)
 
-    config = load_usecase("tienda")  # loading stays pure — no credential needed
+    config = load_usecase(TIENDA)  # loading stays pure — no credential needed
 
-    with pytest.raises(MissingCredential, match="AGENT_TIER1_API_KEY"):
+    with pytest.raises(MissingCredentialError, match="AGENT_TIER1_API_KEY"):
         config.preflight()
 
 
 def test_local_only_profile_needs_no_credentials():
-    load_usecase("tienda").preflight()  # must not raise
+    load_usecase(TIENDA).preflight()  # must not raise

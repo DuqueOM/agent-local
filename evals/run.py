@@ -211,7 +211,7 @@ if __name__ == "__main__":
         print(f"Error: {set_arg} not found (use-case: {usecase})")
         sys.exit(1)
 
-    _ROUTER = Router(load_usecase(usecase))
+    _ROUTER = Router(load_usecase(repo_root / "usecases" / usecase))
     print(f"Running eval: {jsonl_path.name} (use-case: {usecase})\n")
 
     results = run_intent_eval(jsonl_path)

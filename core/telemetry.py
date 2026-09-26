@@ -1,3 +1,7 @@
+# GENERATED from DuqueOM/ml-platform libs/llm-core by scripts/export_llm_core.py.
+# Do not edit here: core/EXPORTED_FROM.json pins the source commit and every
+# file's hash, and tests/test_core_is_exported.py fails on drift. Change
+# ml-platform, then re-export (platform-ADR-010).
 """Decision telemetry — a CONTRACT, not a nicety (plan §F3).
 
 Every request emits a :class:`core.schemas.TelemetryEntry` as one JSONL line.
@@ -20,6 +24,7 @@ from __future__ import annotations
 import json
 import re
 from pathlib import Path
+from typing import Any
 
 from .schemas import TelemetryEntry
 
@@ -46,7 +51,7 @@ def redact(text: str) -> str:
     return text
 
 
-def redact_obj(obj):
+def redact_obj(obj: Any) -> Any:
     """Recursively redact PII from strings inside dicts/lists/scalars.
 
     String values under a key in :data:`_SAFE_KEYS` are passed through verbatim
@@ -74,9 +79,9 @@ class TelemetrySink:
         self.path = path
         self.enabled = enabled and path is not None
 
-    def emit(self, entry: TelemetryEntry) -> dict:
+    def emit(self, entry: TelemetryEntry) -> dict[str, Any]:
         """Serialize, redact and (if enabled) append the entry. Returns the dict."""
-        record = redact_obj(entry.model_dump(mode="json"))
+        record: dict[str, Any] = redact_obj(entry.model_dump(mode="json"))
         if self.enabled and self.path is not None:
             self.path.parent.mkdir(parents=True, exist_ok=True)
             with open(self.path, "a", encoding="utf-8") as fh:
