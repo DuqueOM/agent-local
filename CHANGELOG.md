@@ -9,6 +9,19 @@ are backwards-compatible by default (new behaviour is opt-in or fail-closed).
 
 ## [Unreleased]
 
+### Fixed — the export guard missed a package that shadows an exported module
+
+- **A `core/policy/` package beside `core/policy.py` passed every guard.**
+  Python imports the package first, so the exported file stayed byte-identical,
+  correctly hashed, and never loaded. Both this repository's test and
+  ml-platform's `--check` looked only for stray top-level `*.py` files
+  (ml-platform QA-4 round thirteen, P2-1). The test now accounts for every
+  entry under `core/` at any depth, apart from `__pycache__`, and so does the
+  exporter the `export-provenance` job runs.
+- **CI also runs weekly**, so `export-provenance` notices a rewrite of
+  ml-platform's history without waiting for a push here. After this change
+  `main` requires a pull request with `export-provenance` green.
+
 ### Changed — BREAKING: `core/` is now exported from ml-platform
 
 - **`core/` is a one-way export of `libs/llm-core` in DuqueOM/ml-platform**,
