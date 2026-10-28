@@ -143,6 +143,11 @@ python -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"     # or: pip install -r requirements-dev.txt
 ```
 
+With [uv](https://docs.astral.sh/uv/) (uses `.python-version` and the pinned `uv.lock`):
+```bash
+uv sync --extra dev          # then prefix commands with `uv run`, e.g. `uv run pytest`
+```
+
 ### Pick a tier topology (ADR-011)
 
 Resident memory — not token cost — is the binding constraint on a workstation,
