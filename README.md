@@ -1,3 +1,5 @@
+**Status:** Architecture study. I designed and directed it; AI coding agents wrote most of the code. Not deployed to a cloud.
+
 > # 🧬 Also the LLM plane of [ml-platform](https://github.com/DuqueOM/ml-platform) — and still standalone
 >
 > This repository's core, use-case, eval harness and twelve ADRs were vendored
